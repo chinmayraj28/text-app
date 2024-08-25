@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Here</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        #nameEntry {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #nameInput {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        #startButton {
+            padding: 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+
+        #startButton:hover {
+            background-color: #45a049;
+        }
+
+        #chatContainer {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .messages {
+            width: 100%;
+            height: 300px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+        }
+
+        .input-container {
+            display: flex;
+            width: 100%;
+            gap: 10px;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        #sendButton {
+            padding: 10px 20px;
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #sendButton:hover {
+            background-color: #007bb5;
+        }
+
+        .message {
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 4px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .sent {
+            background-color: #dcf8c6;
+            align-self: flex-end;
+        }
+
+        .received {
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            align-self: flex-start;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="nameEntry">
+            <input type="text" id="nameInput" placeholder="Enter your name..." autofocus>
+            <button id="startButton">Start</button>
+        </div>
+        
+        <div id="chatContainer">
+            <h1>Chat</h1>
+            <div id="messages" class="messages"></div>
+            <div class="input-container">
+                <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+                <button id="sendButton" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const nameInput = document.getElementById('nameInput');
+        const startButton = document.getElementById('startButton');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const messages = document.getElementById('messages');
+        const nameEntry = document.getElementById('nameEntry');
+        const chatContainer = document.getElementById('chatContainer');
+    
+        let userName = '';
+        let isSelf = false; 
+    
+        startButton.addEventListener('click', () => {
+            if (nameInput.value.trim() !== '') {
+                userName = nameInput.value.trim();
+                nameEntry.style.display = 'none';
+                chatContainer.style.display = 'flex';
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                messageInput.focus();
+                notify(`Welcome, ${userName}!`);
+            } else {
+                alert('Please enter your name.');
+            }
+        });
+    
+        const ws = new WebSocket(`ws://${window.location.host}`);
+    
+        ws.onmessage = async (event) => {
+            if (isSelf) {
+                isSelf = false;  
+                return;  
+            }
+    
+            const messageText = await event.data.text();
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', 'received');
+            messageElement.textContent = messageText;
+            messages.appendChild(messageElement);
+            messages.scrollTop = messages.scrollHeight; 
+            notify(`New message received: ${messageText}`);
+        };
+    
+        sendButton.addEventListener('click', () => {
+            const message = messageInput.value;
+            if (message) {
+                const fullMessage = `${userName}: ${message}`;
+                isSelf = true; 
+                ws.send(fullMessage);
+    
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message', 'sent');
+                messageElement.textContent = fullMessage;
+                messages.appendChild(messageElement);
+    
+                messages.scrollTop = messages.scrollHeight;  
+                messageInput.value = '';
+            }
+        });
+    
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendButton.click();
+            }
+        });
+    
+        function notify(message) {
+            if (!("Notification" in window)) {
+                alert("This browser does not support desktop notifications.");
+            } else if (Notification.permission === "granted") {
+                new Notification(message);
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        new Notification(message);
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
